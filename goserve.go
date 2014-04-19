@@ -17,6 +17,7 @@ import (
 type ServerConfig struct {
 	Listeners []Listener `yaml:"listeners"`
 	Serves    []Serve    `yaml:"serve"`
+	Errors    []Error    `yaml:"errors"`
 	Redirects []Redirect `yaml:"redirects"`
 }
 
@@ -42,6 +43,9 @@ func (c ServerConfig) sanitise() {
 	}
 	for _, r := range c.Redirects {
 		r.sanitise()
+	}
+	for _, e := range c.Errors {
+		e.sanitise()
 	}
 }
 
@@ -160,6 +164,63 @@ func (r Redirect) check(label string) (ok bool) {
 	return true
 }
 
+type Error struct {
+	Status  int `yaml:"status"`
+	Target string `yaml:"target"`
+}
+
+func (e *Error) sanitise() {
+}
+
+func (e Error) check() (ok bool) {
+	return true
+}
+
+func (e Error) Handler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(e.Status)
+		// Clear any existing headers
+		for k := range w.Header() {
+			w.Header().Del(k)
+		}
+		//w.Header().Set("content-type", "")
+		http.ServeFile(w, r, e.Target)
+	})
+}
+
+type ErrorHandlingResponseWriter struct {
+	http.ResponseWriter
+	r *http.Request
+	ErrorHandlers map[int]http.Handler
+}
+
+func (h *ErrorHandlingResponseWriter) WriteHeader(status int) {
+	handler := h.ErrorHandlers[status]
+	if handler != nil {
+		fmt.Printf("pre: %#v\n", h.ResponseWriter.Header())
+		handler.ServeHTTP(h.ResponseWriter, h.r)
+		fmt.Printf("post: %#v\n", h.ResponseWriter.Header())
+		panic(h)
+	} else {
+		h.ResponseWriter.WriteHeader(status)
+	}
+}
+
+func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ehrw := &ErrorHandlingResponseWriter{ResponseWriter: w, r: r, ErrorHandlers: errorHandlers}
+		defer func() {
+			if p := recover(); p != nil {
+				if p == ehrw {
+					return
+				}
+				panic(p)
+			}
+		}()
+		handler.ServeHTTP(ehrw, r)
+	})
+}
+
 var verbose bool
 var configPath string
 var checkConfig bool
@@ -191,6 +252,7 @@ func main() {
 		}
 	}
 	cfg.sanitise()
+	fmt.Println(cfg)
 
 	if !cfg.check() {
 		log.Fatalln("Invalid config.")
@@ -200,9 +262,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	errorHandlers := make(map[int]http.Handler)
+	for _, e := range cfg.Errors {
+		errorHandlers[e.Status] = e.Handler()
+	}
+
 	// Setup serves
 	for _, serve := range cfg.Serves {
-		http.Handle(serve.Path, http.StripPrefix(serve.Path, http.FileServer(http.Dir(serve.Target))))
+		fh := http.FileServer(http.Dir(serve.Target))
+		eh := ErrorHandler(fh, errorHandlers)
+		http.Handle(serve.Path, http.StripPrefix(serve.Path, eh))
 	}
 
 	// Setup redirects
