@@ -164,6 +164,7 @@ func (r Redirect) check(label string) (ok bool) {
 	return true
 }
 
+// Error represents what to do when a particuar HTTP status is encountered.
 type Error struct {
 	Status  int `yaml:"status"`
 	Target string `yaml:"target"`
@@ -178,16 +179,28 @@ func (e Error) check() (ok bool) {
 
 func (e Error) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(e.Status)
 		// Clear any existing headers
 		for k := range w.Header() {
 			w.Header().Del(k)
 		}
-		//w.Header().Set("content-type", "")
-		http.ServeFile(w, r, e.Target)
+		w.WriteHeader(e.Status)
+
+		// Forbid serveFile from writing a new header by wrapping RW with
+		// nil version.
+		http.ServeFile(&NoHeaderResponseWriter{ResponseWriter: w}, r, e.Target)
 	})
 }
 
+// NoHeaderResponseWriter ignores WriteHeader calls. Useful when you know
+// the HTTP status has already been emitted.
+type NoHeaderResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (h *NoHeaderResponseWriter) WriteHeader(status int) {}
+
+// ErrorHandlingResponseWriter intercepts known error codes and responds
+// with a different Handler.
 type ErrorHandlingResponseWriter struct {
 	http.ResponseWriter
 	r *http.Request
@@ -197,18 +210,21 @@ type ErrorHandlingResponseWriter struct {
 func (h *ErrorHandlingResponseWriter) WriteHeader(status int) {
 	handler := h.ErrorHandlers[status]
 	if handler != nil {
-		fmt.Printf("pre: %#v\n", h.ResponseWriter.Header())
 		handler.ServeHTTP(h.ResponseWriter, h.r)
-		fmt.Printf("post: %#v\n", h.ResponseWriter.Header())
 		panic(h)
 	} else {
 		h.ResponseWriter.WriteHeader(status)
 	}
 }
 
+// ErrorHandler wraps a Handler such that any HTTP errors can be dealt with
+// using a custom Handler.
 func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ehrw := &ErrorHandlingResponseWriter{ResponseWriter: w, r: r, ErrorHandlers: errorHandlers}
+
+		// If error was intercepted, originating call would have been panic'd.
+		// Recover here once error has been dealt with.
 		defer func() {
 			if p := recover(); p != nil {
 				if p == ehrw {
@@ -217,6 +233,7 @@ func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http
 				panic(p)
 			}
 		}()
+
 		handler.ServeHTTP(ehrw, r)
 	})
 }
