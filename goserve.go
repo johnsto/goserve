@@ -117,6 +117,8 @@ type Serve struct {
 	Target string `yaml:"target"`
 	// Path is the HTTP path that clients may use.
 	Path string `yaml:"path"`
+	// Error allows paths forcibly return errors
+	Error int `yaml:"error"`
 }
 
 func (s *Serve) sanitise() {
@@ -131,8 +133,12 @@ func (s Serve) check(label string) (ok bool) {
 		log.Println(label + ": no path specified")
 		ok = false
 	}
-	if s.Target == "" {
+	if s.Error == 0 && s.Target == "" {
 		log.Println(label + ": no target path specified")
+		ok = false
+	}
+	if s.Error != 0 && s.Target != "" {
+		log.Println(label + ": error specificied with target path")
 		ok = false
 	}
 	return
@@ -289,8 +295,16 @@ func main() {
 
 	// Setup serves
 	for _, serve := range cfg.Serves {
-		fh := http.FileServer(http.Dir(serve.Target))
-		eh := ErrorHandler(fh, errorHandlers)
+		var h http.Handler
+		if serve.Error > 0 {
+			errStatus := serve.Error
+			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, http.StatusText(errStatus), errStatus)
+			})
+		} else {
+			h = http.FileServer(http.Dir(serve.Target))
+		}
+		eh := ErrorHandler(h, errorHandlers)
 		http.Handle(serve.Path, http.StripPrefix(serve.Path, eh))
 	}
 

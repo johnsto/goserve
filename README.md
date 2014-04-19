@@ -22,6 +22,8 @@ listeners:
     key: cert.key
 
 serve:
+  - path: /files/passwd
+    error: 401
   - path: /files/
     target: /var/wwwfiles
   - path: /
@@ -38,3 +40,13 @@ redirects:
     to: /files
     status: 302
 ```
+
+Notes
+-----
+Goserve will serve up the `index.html` file of any directory that is requested. If `index.html` is not found, it will list the contents of the directory. If you don't want the contents of a directory to be listable, place an empty `index.html` file in the directory.
+
+Implementation Notes
+--------------------
+Goserve  is little more than a configurable wrapper around Go's `http.ServeFile` handler, so it benefits from the caching/ETag behaviour of the default implementation.
+
+To deal with errors, a custom `ResponseWriter` intercepts `WriteHeader` calls and attempts to serve up an appropriate error file (again, using `http.ServeFile`) for the status is known. Otherwise it falls through to the default implementation.
