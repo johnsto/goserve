@@ -2,6 +2,8 @@ goserve
 =======
 A super dumb, super simple HTTP server designed for serving static files and requiring only rudimentary configuration.
 
+[![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest)
+
 Configuration
 -------------
 By default, `goserve` will serve the current directory on port 8080 when run without any parameters.
@@ -30,7 +32,9 @@ errors:
     target: /var/wwwroot/404.html
 
 redirects:
+  - from: files.myhost.com
+    to: /files
   - from: /~files
     to: /files
-    status: 301
+    status: 302
 ```

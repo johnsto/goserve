@@ -4,8 +4,8 @@ import (
 	"gopkg.in/v1/yaml"
 
 	"flag"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -97,15 +97,15 @@ func (l *Listener) check(label string) (ok bool) {
 		}
 	} else if l.Protocol == "https" {
 		if _, err := os.Stat(l.CertFile); os.IsNotExist(err) {
-			log.Printf(label + ": cert file `%s` does not exist", l.CertFile)
+			log.Printf(label+": cert file `%s` does not exist", l.CertFile)
 			ok = false
 		}
 		if _, err := os.Stat(l.KeyFile); os.IsNotExist(err) {
-			log.Printf(label + ": key file `%s` does not exist", l.KeyFile)
+			log.Printf(label+": key file `%s` does not exist", l.KeyFile)
 			ok = false
 		}
 	} else {
-		log.Printf(label + ": invalid protocol `%s`", l.Protocol)
+		log.Printf(label+": invalid protocol `%s`", l.Protocol)
 		ok = false
 	}
 	return
@@ -140,9 +140,9 @@ func (s Serve) check(label string) (ok bool) {
 
 // Redirect represents a redirect from one path to another.
 type Redirect struct {
-	From  string `yaml:"from"`
-	To    string `yaml:"to"`
-	With  int    `yaml:"status"`
+	From string `yaml:"from"`
+	To   string `yaml:"to"`
+	With int    `yaml:"status"`
 }
 
 func (r *Redirect) sanitise() {
@@ -166,7 +166,7 @@ func (r Redirect) check(label string) (ok bool) {
 
 // Error represents what to do when a particuar HTTP status is encountered.
 type Error struct {
-	Status  int `yaml:"status"`
+	Status int    `yaml:"status"`
 	Target string `yaml:"target"`
 }
 
@@ -205,7 +205,7 @@ func (h *NoHeaderResponseWriter) WriteHeader(status int) {}
 // with a different Handler.
 type ErrorHandlingResponseWriter struct {
 	http.ResponseWriter
-	r *http.Request
+	r             *http.Request
 	ErrorHandlers map[int]http.Handler
 }
 
