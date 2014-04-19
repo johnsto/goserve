@@ -177,7 +177,7 @@ func (e Error) check() (ok bool) {
 	return true
 }
 
-func (e Error) Handler() http.Handler {
+func (e Error) handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Clear any existing headers
 		for k := range w.Header() {
@@ -197,6 +197,8 @@ type NoHeaderResponseWriter struct {
 	http.ResponseWriter
 }
 
+// WriteHeader does nothing. Useful when you know a header has already been
+// written.
 func (h *NoHeaderResponseWriter) WriteHeader(status int) {}
 
 // ErrorHandlingResponseWriter intercepts known error codes and responds
@@ -207,6 +209,8 @@ type ErrorHandlingResponseWriter struct {
 	ErrorHandlers map[int]http.Handler
 }
 
+// WriteHeader hijacks the response if the error code is known to it, and
+// responds using a predetermined Handler if possible.
 func (h *ErrorHandlingResponseWriter) WriteHeader(status int) {
 	handler := h.ErrorHandlers[status]
 	if handler != nil {
@@ -269,7 +273,6 @@ func main() {
 		}
 	}
 	cfg.sanitise()
-	fmt.Println(cfg)
 
 	if !cfg.check() {
 		log.Fatalln("Invalid config.")
@@ -281,7 +284,7 @@ func main() {
 
 	errorHandlers := make(map[int]http.Handler)
 	for _, e := range cfg.Errors {
-		errorHandlers[e.Status] = e.Handler()
+		errorHandlers[e.Status] = e.handler()
 	}
 
 	// Setup serves
