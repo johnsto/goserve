@@ -118,7 +118,7 @@ type Serve struct {
 	// Path is the HTTP path that clients may use.
 	Path string `yaml:"path"`
 	// Error allows paths forcibly return errors
-	Error int `yaml:"error"`
+	Error          int  `yaml:"error"`
 	PreventListing bool `yaml:"prevent-listing"`
 }
 
