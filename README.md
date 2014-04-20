@@ -4,6 +4,8 @@ A super dumb, super simple HTTP server designed for serving static files and req
 
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest)
 
+[![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
+
 Configuration
 -------------
 By default, `goserve` will serve the current directory on port 8080 when run without any parameters.
