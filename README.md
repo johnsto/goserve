@@ -28,10 +28,13 @@ serve:
     target: /var/wwwfiles
   - path: /
     target: /var/wwwroot
+    prevent-listing: true
 
 errors:
   - status: 404
-    target: /var/wwwroot/404.html
+    target: /var/wwwroot/notfound.html
+  - status: 403
+    target: /var/wwwroot/forbidden.html
 
 redirects:
   - from: files.myhost.com
@@ -43,10 +46,10 @@ redirects:
 
 Notes
 -----
-Goserve will serve up the `index.html` file of any directory that is requested. If `index.html` is not found, it will list the contents of the directory. If you don't want the contents of a directory to be listable, place an empty `index.html` file in the directory.
+Goserve will serve up the `index.html` file of any directory that is requested. If `index.html` is not found, it will list the contents of the directory. If you don't want the contents of a directory to be listable, place an empty `index.html` file in the directory. Alternatively, specify `prevent-listing: true` on the serve to serve up a "403 Forbidden" error instead.
 
 Implementation Notes
 --------------------
-Goserve  is little more than a configurable wrapper around Go's `http.ServeFile` handler, so it benefits from the caching/ETag behaviour of the default implementation.
+Goserve is little more than a (admittedly rather hacky) configurable wrapper around Go's `http.ServeFile` handler, so it benefits from all the features of the default `FileServer` implementation (such as ETag support and range handling). Unfortunately, Go's `net/http` package doesn't expose quite as much control over the default `FileServer` implementation as one would like, so `goserve` uses a combination of wrapped handlers and `panic` intercepts to achieve the desired behaviour.
 
-To deal with errors, a custom `ResponseWriter` intercepts `WriteHeader` calls and attempts to serve up an appropriate error file (again, using `http.ServeFile`) for the status is known. Otherwise it falls through to the default implementation.
+To deal with errors, a custom `ResponseWriter` intercepts `WriteHeader` calls and attempts to serve up an appropriate error file (again, using `http.ServeFile`) when the status is known. Otherwise it falls through to the default implementation.

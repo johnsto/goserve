@@ -119,6 +119,7 @@ type Serve struct {
 	Path string `yaml:"path"`
 	// Error allows paths forcibly return errors
 	Error int `yaml:"error"`
+	PreventListing bool `yaml:"prevent-listing"`
 }
 
 func (s *Serve) sanitise() {
@@ -240,12 +241,31 @@ func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http
 				if p == ehrw {
 					return
 				}
+				if p == 1 {
+					http.Error(w, "way", 404)
+					return
+				}
 				panic(p)
 			}
 		}()
 
 		handler.ServeHTTP(ehrw, r)
 	})
+}
+
+// PreventListingDir panics whenever a file open fails, allowing index
+// requests to be intercepted.
+type PreventListingDir struct {
+	http.Dir
+}
+
+// Open panics whenever opening a file fails.
+func (dir *PreventListingDir) Open(name string) (f http.File, err error) {
+	f, err = dir.Dir.Open(name)
+	if f == nil {
+		panic(dir)
+	}
+	return
 }
 
 var verbose bool
@@ -300,6 +320,23 @@ func main() {
 			errStatus := serve.Error
 			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, http.StatusText(errStatus), errStatus)
+			})
+		} else if serve.PreventListing {
+			// Prevent listing of directories lacking an index.html file
+			target := serve.Target
+			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				d := &PreventListingDir{http.Dir(target)}
+				fs := http.FileServer(d)
+				defer func() {
+					if p := recover(); p != nil {
+						if p == d {
+							http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+							return
+						}
+						panic(p)
+					}
+				}()
+				fs.ServeHTTP(w, r)
 			})
 		} else {
 			h = http.FileServer(http.Dir(serve.Target))
