@@ -113,13 +113,10 @@ func (l *Listener) check(label string) (ok bool) {
 
 // Serve represents a path that will be served.
 type Serve struct {
-	// Target specifies where files will be read from on the file system.
-	Target string `yaml:"target"`
-	// Path is the HTTP path that clients may use.
-	Path string `yaml:"path"`
-	// Error allows paths forcibly return errors
-	Error          int  `yaml:"error"`
-	PreventListing bool `yaml:"prevent-listing"`
+	Target         string `yaml:"target"`          // where files are stored on the file system
+	Path           string `yaml:"path"`            // HTTP path to serve files under
+	Error          int    `yaml:"error"`           // HTTP error to return (0=disabled)
+	PreventListing bool   `yaml:"prevent-listing"` // prevent file listing
 }
 
 func (s *Serve) sanitise() {
