@@ -9,8 +9,8 @@ Features
 * ETag support
 * Range handling
 * HTTPS (TLS)
-* Custom headers
 * Custom error pages
+* Custom headers (v0.2)
 
 Configuration
 -------------
