@@ -2,9 +2,15 @@ goserve
 =======
 A super dumb, super simple HTTP server designed for serving static files and requiring only rudimentary configuration.
 
-[![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest)
+[![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
 
-[![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
+Features
+--------
+* ETag support
+* Range handling
+* HTTPS (TLS)
+* Custom headers
+* Custom error pages
 
 Configuration
 -------------
@@ -28,6 +34,8 @@ serve:
     error: 401
   - path: /files/
     target: /var/wwwfiles
+    headers:
+      Cache-Control: public, max-age=3600
   - path: /
     target: /var/wwwroot
     prevent-listing: true

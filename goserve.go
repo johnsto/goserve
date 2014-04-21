@@ -13,6 +13,9 @@ import (
 	"syscall"
 )
 
+// Headers represents a simplified HTTP header dict
+type Headers map[string]string
+
 // ServerConfig represents a server configuration.
 type ServerConfig struct {
 	Listeners []Listener `yaml:"listeners"`
@@ -77,6 +80,7 @@ type Listener struct {
 	Addr     string `yaml:"addr"`
 	CertFile string `yaml:"cert"`
 	KeyFile  string `yaml:"key"`
+	Headers		   Headers `yaml:"headers"` // custom headers
 }
 
 func (l *Listener) sanitise() {
@@ -117,6 +121,7 @@ type Serve struct {
 	Path           string `yaml:"path"`            // HTTP path to serve files under
 	Error          int    `yaml:"error"`           // HTTP error to return (0=disabled)
 	PreventListing bool   `yaml:"prevent-listing"` // prevent file listing
+	Headers		   Headers `yaml:"headers"` // custom headers
 }
 
 func (s *Serve) sanitise() {
@@ -265,6 +270,18 @@ func (dir *PreventListingDir) Open(name string) (f http.File, err error) {
 	return
 }
 
+func CustomHeadersHandler(h http.Handler, headers Headers) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wh := w.Header()
+		for k, v := range headers {
+			if wh.Get(k) == "" {
+				wh.Set(k, v)
+			}
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 var verbose bool
 var configPath string
 var checkConfig bool
@@ -338,6 +355,9 @@ func main() {
 		} else {
 			h = http.FileServer(http.Dir(serve.Target))
 		}
+		if len(serve.Headers) > 0 {
+			h = CustomHeadersHandler(h, serve.Headers)
+		}
 		eh := ErrorHandler(h, errorHandlers)
 		http.Handle(serve.Path, http.StripPrefix(serve.Path, eh))
 	}
@@ -349,16 +369,20 @@ func main() {
 
 	// Start listeners
 	for _, listener := range cfg.Listeners {
+		var h http.Handler = http.DefaultServeMux
+		if len(listener.Headers) > 0 {
+			h = CustomHeadersHandler(h, listener.Headers)
+		}
 		if listener.Protocol == "http" {
 			go func() {
-				err := http.ListenAndServe(listener.Addr, nil)
+				err := http.ListenAndServe(listener.Addr, h)
 				if err != nil {
 					log.Fatalln(err)
 				}
 			}()
 		} else if listener.Protocol == "https" {
 			go func() {
-				err := http.ListenAndServeTLS(listener.Addr, listener.CertFile, listener.KeyFile, nil)
+				err := http.ListenAndServeTLS(listener.Addr, listener.CertFile, listener.KeyFile, h)
 				if err != nil {
 					log.Fatalln(err)
 				}
