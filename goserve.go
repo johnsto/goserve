@@ -243,10 +243,6 @@ func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http
 				if p == ehrw {
 					return
 				}
-				if p == 1 {
-					http.Error(w, "way", 404)
-					return
-				}
 				panic(p)
 			}
 		}()
