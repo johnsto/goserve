@@ -3,8 +3,11 @@ package main
 import (
 	"gopkg.in/v1/yaml"
 
+	"compress/gzip"
 	"flag"
 	"fmt"
+	"io"
+	"strings"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -81,6 +84,7 @@ type Listener struct {
 	CertFile string `yaml:"cert"`
 	KeyFile  string `yaml:"key"`
 	Headers		   Headers `yaml:"headers"` // custom headers
+	Gzip bool `yaml:"gzip"`
 }
 
 func (l *Listener) sanitise() {
@@ -282,6 +286,37 @@ func CustomHeadersHandler(h http.Handler, headers Headers) http.Handler {
 	})
 }
 
+type GzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+	gotContentType bool
+}
+
+func (w *GzipResponseWriter) Write(b []byte) (int, error) {
+	if !w.gotContentType {
+		if w.Header().Get("Content-Type") == "" {
+			w.Header().Set("Content-Type", http.DetectContentType(b))
+		}
+		w.gotContentType = true
+	}
+	return w.Writer.Write(b)
+}
+
+// GzipHandler gzips the HTTP response if supported by the client. Based on 
+// the implementation of `go.httpgzip`
+func GzipHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			h.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		h.ServeHTTP(&GzipResponseWriter{Writer: gz, ResponseWriter: w}, r)
+	})
+}
+
 var verbose bool
 var configPath string
 var checkConfig bool
@@ -370,6 +405,9 @@ func main() {
 	// Start listeners
 	for _, listener := range cfg.Listeners {
 		var h http.Handler = http.DefaultServeMux
+		if listener.Gzip {
+			h = GzipHandler(h)
+		}
 		if len(listener.Headers) > 0 {
 			h = CustomHeadersHandler(h, listener.Headers)
 		}
