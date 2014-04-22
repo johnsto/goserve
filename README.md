@@ -11,6 +11,7 @@ Features
 * HTTPS (TLS)
 * Custom error pages
 * Custom headers (v0.2)
+* GZip compression (v0.2)
 
 Configuration
 -------------
