@@ -177,7 +177,7 @@ func (r Redirect) check(label string) (ok bool) {
 	return true
 }
 
-// Error represents what to do when a particuar HTTP status is encountered.
+// Error represents what to do when a particular HTTP status is encountered.
 type Error struct {
 	Status int    `yaml:"status"`
 	Target string `yaml:"target"`
@@ -192,27 +192,34 @@ func (e Error) check() (ok bool) {
 
 func (e Error) handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Clear any existing headers
-		for k := range w.Header() {
-			w.Header().Del(k)
-		}
-		w.WriteHeader(e.Status)
+		// Clear content-type as set by `http.Error` to force re-detection
+		w.Header().Del("Content-Type")
 
-		// Forbid serveFile from writing a new header by wrapping RW with
-		// nil version.
-		http.ServeFile(&NoHeaderResponseWriter{ResponseWriter: w}, r, e.Target)
+		// Serve error page with a specific status code
+		http.ServeFile(&CustomStatusResponseWriter{ResponseWriter: w, Status: e.Status}, r, e.Target)
 	})
 }
 
-// NoHeaderResponseWriter ignores WriteHeader calls. Useful when you know
-// the HTTP status has already been emitted.
-type NoHeaderResponseWriter struct {
+// CustomStatusResponseWriter forces a particular status code in the response.
+// If no custom status code is given, it falls through to the default
+// implementation.
+type CustomStatusResponseWriter struct {
 	http.ResponseWriter
+	Status int
 }
 
-// WriteHeader does nothing. Useful when you know a header has already been
-// written.
-func (h *NoHeaderResponseWriter) WriteHeader(status int) {}
+// WriteHeader writes the HTTP status to the output. Must be called after
+// all headers have been set.
+func (h *CustomStatusResponseWriter) WriteHeader(status int) {
+	if h.Status < 0 {
+		return
+	}
+	if h.Status > 0 {
+		h.ResponseWriter.WriteHeader(h.Status)
+		return
+	}
+	h.ResponseWriter.WriteHeader(status)
+}
 
 // ErrorHandlingResponseWriter intercepts known error codes and responds
 // with a different Handler.
@@ -245,10 +252,6 @@ func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http
 		defer func() {
 			if p := recover(); p != nil {
 				if p == ehrw {
-					return
-				}
-				if p == 1 {
-					http.Error(w, "way", 404)
 					return
 				}
 				panic(p)
@@ -375,7 +378,7 @@ func main() {
 			target := serve.Target
 			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				d := &PreventListingDir{http.Dir(target)}
-				fs := http.FileServer(d)
+				h := http.FileServer(d)
 				defer func() {
 					if p := recover(); p != nil {
 						if p == d {
@@ -385,7 +388,7 @@ func main() {
 						panic(p)
 					}
 				}()
-				fs.ServeHTTP(w, r)
+				h.ServeHTTP(w, r)
 			})
 		} else {
 			h = http.FileServer(http.Dir(serve.Target))
@@ -393,8 +396,8 @@ func main() {
 		if len(serve.Headers) > 0 {
 			h = CustomHeadersHandler(h, serve.Headers)
 		}
-		eh := ErrorHandler(h, errorHandlers)
-		http.Handle(serve.Path, http.StripPrefix(serve.Path, eh))
+		h = ErrorHandler(h, errorHandlers)
+		http.Handle(serve.Path, http.StripPrefix(serve.Path, h))
 	}
 
 	// Setup redirects
@@ -405,11 +408,11 @@ func main() {
 	// Start listeners
 	for _, listener := range cfg.Listeners {
 		var h http.Handler = http.DefaultServeMux
-		if listener.Gzip {
-			h = GzipHandler(h)
-		}
 		if len(listener.Headers) > 0 {
 			h = CustomHeadersHandler(h, listener.Headers)
+		}
+		if listener.Gzip {
+			h = GzipHandler(h)
 		}
 		if listener.Protocol == "http" {
 			go func() {
