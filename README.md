@@ -37,11 +37,7 @@ serve:
   - path: /files/
     target: /var/wwwfiles
     headers:
-<<<<<<< HEAD
-      Cache-Control: public, max-age=3600
-=======
       Cache-Control: public, max-age=86400
->>>>>>> Gzip support (broken for error handling though)
   - path: /
     target: /var/wwwroot
     prevent-listing: true
