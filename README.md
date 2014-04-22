@@ -1,11 +1,11 @@
-goserve
-=======
+# goserve
+
 A super dumb, super simple HTTP server designed for serving static files and requiring only rudimentary configuration.
 
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
 
-Features
---------
+## Features
+
 * ETag support
 * Range handling
 * HTTPS (TLS)
@@ -13,12 +13,12 @@ Features
 * Custom headers (v0.2)
 * GZip compression (v0.2)
 
-Performance
------------
+## Performance
+
 In a completely arbitrary, unscientific test on a machine where `python -m SimpleHTTPServer` achieved 46reqs/sec and Node's `http-server` achieved 625reqs/sec, `goserve` achieved 4716 reqs/sec.
 
-Configuration
--------------
+## Configuration
+
 By default, `goserve` will serve the current directory on port 8080 when run without any parameters.
 
 Alternatively, a configuration file can be specified using the `-config` parameter.
@@ -60,12 +60,12 @@ redirects:
     status: 302
 ```
 
-Notes
------
+## Notes
+
 Goserve will serve up the `index.html` file of any directory that is requested. If `index.html` is not found, it will list the contents of the directory. If you don't want the contents of a directory to be listable, place an empty `index.html` file in the directory. Alternatively, specify `prevent-listing: true` on the serve to serve up a "403 Forbidden" error instead.
 
-Implementation Notes
---------------------
+### Implementation
+
 Goserve is little more than a (admittedly rather hacky) configurable wrapper around Go's `http.ServeFile` handler, so it benefits from all the features of the default `FileServer` implementation (such as ETag support and range handling). Unfortunately, Go's `net/http` package doesn't expose quite as much control over the default `FileServer` implementation as one would like, so `goserve` uses a combination of wrapped handlers and `panic` intercepts to achieve the desired behaviour.
 
 To deal with errors, a custom `ResponseWriter` intercepts `WriteHeader` calls and attempts to serve up an appropriate error file (again, using `http.ServeFile`) when the status is known. Otherwise it falls through to the default implementation.
