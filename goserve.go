@@ -22,7 +22,7 @@ type Headers map[string]string
 // ServerConfig represents a server configuration.
 type ServerConfig struct {
 	Listeners []Listener `yaml:"listeners"`
-	Serves    []Serve    `yaml:"serve"`
+	Serves    []Serve    `yaml:"serves"`
 	Errors    []Error    `yaml:"errors"`
 	Redirects []Redirect `yaml:"redirects"`
 }

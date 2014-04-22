@@ -31,7 +31,7 @@ listeners:
     cert: cert.crt
     key: cert.key
 
-serve:
+serves:
   - path: /files/passwd
     error: 401
   - path: /files/
