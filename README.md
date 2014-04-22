@@ -13,6 +13,10 @@ Features
 * Custom headers (v0.2)
 * GZip compression (v0.2)
 
+Performance
+-----------
+In a completely arbitrary, unscientific test on a machine where `python -m SimpleHTTPServer` achieved 46reqs/sec and Node's `http-server` achieved 625reqs/sec, `goserve` achieved 4716 reqs/sec.
+
 Configuration
 -------------
 By default, `goserve` will serve the current directory on port 8080 when run without any parameters.
