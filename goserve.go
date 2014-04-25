@@ -27,15 +27,33 @@ type ServerConfig struct {
 	Redirects []Redirect `yaml:"redirects"`
 }
 
+var verbose bool
+var configPath string
+var checkConfig bool
+var defaultAddr string
+
+func init() {
+	flag.BoolVar(&verbose, "verbose", false, "Verbose")
+	flag.StringVar(&configPath, "config", "", "Path to configuration")
+	flag.BoolVar(&checkConfig, "check", false, "Only check config")
+	flag.StringVar(&defaultAddr, "addr", ":8080", "Default listen address")
+
+	flag.Parse()
+}
+
 // DefaultServerConfig creates a basic server config on a non-privileged port
 // that serves up files from the CWD to the root path over HTTP.
 func DefaultServerConfig() ServerConfig {
 	c := ServerConfig{}
 	c.Listeners = []Listener{
-		Listener{Protocol: "http", Addr: ":8080"},
+		Listener{Protocol: "http", Addr: defaultAddr},
+	}
+	target := flag.Arg(0)
+	if target == "" {
+		target = "."
 	}
 	c.Serves = []Serve{
-		Serve{Path: "/", Target: "."},
+		Serve{Path: "/", Target: target},
 	}
 	return c
 }
@@ -318,18 +336,6 @@ func GzipHandler(h http.Handler) http.Handler {
 		defer gz.Close()
 		h.ServeHTTP(&GzipResponseWriter{Writer: gz, ResponseWriter: w}, r)
 	})
-}
-
-var verbose bool
-var configPath string
-var checkConfig bool
-
-func init() {
-	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.StringVar(&configPath, "config", "", "Path to configuration")
-	flag.BoolVar(&checkConfig, "check", false, "Only check config")
-
-	flag.Parse()
 }
 
 func readServerConfig(filename string) (cfg ServerConfig, err error) {
