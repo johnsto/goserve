@@ -7,12 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"strings"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
@@ -25,37 +25,6 @@ type ServerConfig struct {
 	Serves    []Serve    `yaml:"serves"`
 	Errors    []Error    `yaml:"errors"`
 	Redirects []Redirect `yaml:"redirects"`
-}
-
-var verbose bool
-var configPath string
-var checkConfig bool
-var defaultAddr string
-
-func init() {
-	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.StringVar(&configPath, "config", "", "Path to configuration")
-	flag.BoolVar(&checkConfig, "check", false, "Only check config")
-	flag.StringVar(&defaultAddr, "addr", ":8080", "Default listen address")
-
-	flag.Parse()
-}
-
-// DefaultServerConfig creates a basic server config on a non-privileged port
-// that serves up files from the CWD to the root path over HTTP.
-func DefaultServerConfig() ServerConfig {
-	c := ServerConfig{}
-	c.Listeners = []Listener{
-		Listener{Protocol: "http", Addr: defaultAddr},
-	}
-	target := flag.Arg(0)
-	if target == "" {
-		target = "."
-	}
-	c.Serves = []Serve{
-		Serve{Path: "/", Target: target},
-	}
-	return c
 }
 
 func (c ServerConfig) sanitise() {
@@ -97,12 +66,12 @@ func (c ServerConfig) check() (ok bool) {
 
 // Listener describes how connections are accepted and the protocol used.
 type Listener struct {
-	Protocol string `yaml:"protocol"`
-	Addr     string `yaml:"addr"`
-	CertFile string `yaml:"cert"`
-	KeyFile  string `yaml:"key"`
-	Headers		   Headers `yaml:"headers"` // custom headers
-	Gzip bool `yaml:"gzip"`
+	Protocol string  `yaml:"protocol"`
+	Addr     string  `yaml:"addr"`
+	CertFile string  `yaml:"cert"`
+	KeyFile  string  `yaml:"key"`
+	Headers  Headers `yaml:"headers"` // custom headers
+	Gzip     bool    `yaml:"gzip"`
 }
 
 func (l *Listener) sanitise() {
@@ -139,11 +108,11 @@ func (l *Listener) check(label string) (ok bool) {
 
 // Serve represents a path that will be served.
 type Serve struct {
-	Target         string `yaml:"target"`          // where files are stored on the file system
-	Path           string `yaml:"path"`            // HTTP path to serve files under
-	Error          int    `yaml:"error"`           // HTTP error to return (0=disabled)
-	PreventListing bool   `yaml:"prevent-listing"` // prevent file listing
-	Headers		   Headers `yaml:"headers"` // custom headers
+	Target         string  `yaml:"target"`          // where files are stored on the file system
+	Path           string  `yaml:"path"`            // HTTP path to serve files under
+	Error          int     `yaml:"error"`           // HTTP error to return (0=disabled)
+	PreventListing bool    `yaml:"prevent-listing"` // prevent file listing
+	Headers        Headers `yaml:"headers"`         // custom headers
 }
 
 func (s *Serve) sanitise() {
@@ -214,247 +183,25 @@ func (e Error) handler() http.Handler {
 		w.Header().Del("Content-Type")
 
 		// Serve error page with a specific status code
-		http.ServeFile(&CustomStatusResponseWriter{ResponseWriter: w, Status: e.Status}, r, e.Target)
+		http.ServeFile(w, r, e.Target)
 	})
 }
 
-// CustomStatusResponseWriter forces a particular status code in the response.
-// If no custom status code is given, it falls through to the default
-// implementation.
-type CustomStatusResponseWriter struct {
-	http.ResponseWriter
-	Status int
-}
-
-// WriteHeader writes the HTTP status to the output. Must be called after
-// all headers have been set.
-func (h *CustomStatusResponseWriter) WriteHeader(status int) {
-	if h.Status < 0 {
-		return
-	}
-	if h.Status > 0 {
-		h.ResponseWriter.WriteHeader(h.Status)
-		return
-	}
-	h.ResponseWriter.WriteHeader(status)
-}
-
-// ErrorHandlingResponseWriter intercepts known error codes and responds
-// with a different Handler.
-type ErrorHandlingResponseWriter struct {
-	http.ResponseWriter
-	r             *http.Request
-	ErrorHandlers map[int]http.Handler
-}
-
-// WriteHeader hijacks the response if the error code is known to it, and
-// responds using a predetermined Handler if possible.
-func (h *ErrorHandlingResponseWriter) WriteHeader(status int) {
-	handler := h.ErrorHandlers[status]
-	if handler != nil {
-		handler.ServeHTTP(h.ResponseWriter, h.r)
-		panic(h)
-	} else {
-		h.ResponseWriter.WriteHeader(status)
-	}
-}
-
-// ErrorHandler wraps a Handler such that any HTTP errors can be dealt with
-// using a custom Handler.
-func ErrorHandler(handler http.Handler, errorHandlers map[int]http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ehrw := &ErrorHandlingResponseWriter{ResponseWriter: w, r: r, ErrorHandlers: errorHandlers}
-
-		// If error was intercepted, originating call would have been panic'd.
-		// Recover here once error has been dealt with.
-		defer func() {
-			if p := recover(); p != nil {
-				if p == ehrw {
-					return
-				}
-				panic(p)
-			}
-		}()
-
-		handler.ServeHTTP(ehrw, r)
-	})
-}
-
-// PreventListingDir panics whenever a file open fails, allowing index
-// requests to be intercepted.
-type PreventListingDir struct {
-	http.Dir
-}
-
-// Open panics whenever opening a file fails.
-func (dir *PreventListingDir) Open(name string) (f http.File, err error) {
-	f, err = dir.Dir.Open(name)
-	if f == nil {
-		panic(dir)
-	}
-	return
-}
-
-func CustomHeadersHandler(h http.Handler, headers Headers) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		wh := w.Header()
-		for k, v := range headers {
-			if wh.Get(k) == "" {
-				wh.Set(k, v)
-			}
-		}
-		h.ServeHTTP(w, r)
-	})
-}
-
-type GzipResponseWriter struct {
-	io.Writer
-	http.ResponseWriter
-	gotContentType bool
-}
-
-func (w *GzipResponseWriter) Write(b []byte) (int, error) {
-	if !w.gotContentType {
-		if w.Header().Get("Content-Type") == "" {
-			w.Header().Set("Content-Type", http.DetectContentType(b))
-		}
-		w.gotContentType = true
-	}
-	return w.Writer.Write(b)
-}
-
-// GzipHandler gzips the HTTP response if supported by the client. Based on 
-// the implementation of `go.httpgzip`
-func GzipHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			h.ServeHTTP(w, r)
-			return
-		}
-		w.Header().Set("Content-Encoding", "gzip")
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
-		h.ServeHTTP(&GzipResponseWriter{Writer: gz, ResponseWriter: w}, r)
-	})
-}
-
-func readServerConfig(filename string) (cfg ServerConfig, err error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return
-	}
-	err = yaml.Unmarshal(data, &cfg)
-	return
-}
-
-func main() {
-	cfg := DefaultServerConfig()
-	if configPath != "" {
-		var err error
-		cfg, err = readServerConfig(configPath)
-		if err != nil {
-			log.Fatalln("Couldn't load config:", err)
-		}
-	}
-	cfg.sanitise()
-
-	if !cfg.check() {
-		log.Fatalln("Invalid config.")
-	}
-	if checkConfig {
-		log.Println("Config check passed")
-		os.Exit(0)
-	}
-
-	errorHandlers := make(map[int]http.Handler)
-	for _, e := range cfg.Errors {
-		errorHandlers[e.Status] = e.handler()
-	}
-
-	// Setup serves
-	for _, serve := range cfg.Serves {
-		var h http.Handler
-		if serve.Error > 0 {
-			errStatus := serve.Error
-			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, http.StatusText(errStatus), errStatus)
-			})
-		} else if serve.PreventListing {
-			// Prevent listing of directories lacking an index.html file
-			target := serve.Target
-			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				d := &PreventListingDir{http.Dir(target)}
-				h := http.FileServer(d)
-				defer func() {
-					if p := recover(); p != nil {
-						if p == d {
-							http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-							return
-						}
-						panic(p)
-					}
-				}()
-				h.ServeHTTP(w, r)
-			})
-		} else {
-			h = http.FileServer(http.Dir(serve.Target))
-		}
-		if len(serve.Headers) > 0 {
-			h = CustomHeadersHandler(h, serve.Headers)
-		}
-		h = ErrorHandler(h, errorHandlers)
-		http.Handle(serve.Path, http.StripPrefix(serve.Path, h))
-	}
-
-	// Setup redirects
-	for _, redirect := range cfg.Redirects {
-		http.Handle(redirect.From, http.RedirectHandler(redirect.To, redirect.With))
-	}
-
-	// Start listeners
-	for _, listener := range cfg.Listeners {
-		var h http.Handler = http.DefaultServeMux
-		if len(listener.Headers) > 0 {
-			h = CustomHeadersHandler(h, listener.Headers)
-		}
-		if listener.Gzip {
-			h = GzipHandler(h)
-		}
-		if listener.Protocol == "http" {
-			go func() {
-				err := http.ListenAndServe(listener.Addr, h)
-				if err != nil {
-					log.Fatalln(err)
-				}
-			}()
-		} else if listener.Protocol == "https" {
-			go func() {
-				err := http.ListenAndServeTLS(listener.Addr, listener.CertFile, listener.KeyFile, h)
-				if err != nil {
-					log.Fatalln(err)
-				}
-			}()
-		} else {
-			log.Printf("Unsupported protocol %s\n", listener.Protocol)
-		}
-		log.Printf("listening on %s (%s)\n", listener.Addr, listener.Protocol)
-	}
-
-	// Since all the listeners are running in separate gorotines, we have to
-	// wait here for a termination signal.
-	exit := make(chan os.Signal, 1)
-	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
-	<-exit
-	os.Exit(0)
-}
-
-
-
+// StaticServeMux wraps ServeMux but allows for the interception of errors.
 type StaticServeMux struct {
-	http.ServeMux
+	*http.ServeMux
 	errors map[int]http.Handler
 }
 
+// NewStaticServeMux allocates and returns a new StaticServeMux
+func NewStaticServeMux() *StaticServeMux {
+	return &StaticServeMux{
+		ServeMux: http.NewServeMux(),
+		errors:   make(map[int]http.Handler),
+	}
+}
+
+// HandleError registers a handler for the given response code.
 func (s *StaticServeMux) HandleError(status int, handler http.Handler) {
 	if s.errors[status] != nil {
 		panic("Handler for error already registered")
@@ -463,10 +210,12 @@ func (s *StaticServeMux) HandleError(status int, handler http.Handler) {
 }
 
 func (s StaticServeMux) intercept(status int, w http.ResponseWriter, req *http.Request) bool {
-	if e, f := s.errors[status]; f {
-		e.ServeHTTP(w, req)
+	// Get error handler if there is one
+	if h, f := s.errors[status]; f {
+		h.ServeHTTP(statusResponseWriter{w, status}, req)
 		return true
 	}
+	// Ignore non-error status codes
 	if status < 400 {
 		return false
 	}
@@ -478,8 +227,8 @@ func (s *StaticServeMux) interceptHandler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		irw := &interceptResponseWriter{
 			ResponseWriter: w,
-			r: r,
-			m: s,
+			r:              r,
+			m:              s,
 		}
 
 		// If intercept occurred, originating call would have been panic'd.
@@ -529,7 +278,7 @@ type statusResponseWriter struct {
 	Status int
 }
 
-func (h *statusResponseWriter) WriteHeader(status int) {
+func (h statusResponseWriter) WriteHeader(status int) {
 	if h.Status < 0 {
 		return
 	}
@@ -538,4 +287,203 @@ func (h *statusResponseWriter) WriteHeader(status int) {
 		return
 	}
 	h.ResponseWriter.WriteHeader(status)
+}
+
+// PreventListingDir panics whenever a file open fails, allowing index
+// requests to be intercepted.
+type PreventListingDir struct {
+	http.Dir
+}
+
+// Open panics whenever opening a file fails.
+func (dir *PreventListingDir) Open(name string) (f http.File, err error) {
+	f, err = dir.Dir.Open(name)
+	if f == nil {
+		panic(dir)
+	}
+	return
+}
+
+// CustomHeadersHandler creates a new handler that includes the provided
+// headers in each response.
+func CustomHeadersHandler(h http.Handler, headers Headers) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wh := w.Header()
+		for k, v := range headers {
+			if wh.Get(k) == "" {
+				wh.Set(k, v)
+			}
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+// GzipResponseWriter gzips content written to it
+type GzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+	gotContentType bool
+}
+
+func (w *GzipResponseWriter) Write(b []byte) (int, error) {
+	if !w.gotContentType {
+		if w.Header().Get("Content-Type") == "" {
+			w.Header().Set("Content-Type", http.DetectContentType(b))
+		}
+		w.gotContentType = true
+	}
+	return w.Writer.Write(b)
+}
+
+// GzipHandler gzips the HTTP response if supported by the client. Based on
+// the implementation of `go.httpgzip`
+func GzipHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Serve normally to clients that don't express gzip support
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			h.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		h.ServeHTTP(&GzipResponseWriter{Writer: gz, ResponseWriter: w}, r)
+	})
+}
+
+var configPath string
+var checkConfig bool
+var defaultAddr string
+
+func init() {
+	flag.StringVar(&configPath, "config", "", "Path to configuration")
+	flag.BoolVar(&checkConfig, "check", false, "Only check config")
+	flag.StringVar(&defaultAddr, "addr", ":8080", "Default listen address")
+
+	flag.Parse()
+}
+
+func readServerConfig(filename string) (cfg ServerConfig, err error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
+	}
+	err = yaml.Unmarshal(data, &cfg)
+	return
+}
+
+func defaultServerConfig() ServerConfig {
+	c := ServerConfig{}
+	c.Listeners = []Listener{
+		Listener{Protocol: "http", Addr: defaultAddr},
+	}
+	target := flag.Arg(0)
+	if target == "" {
+		target = "."
+	}
+	c.Serves = []Serve{
+		Serve{Path: "/", Target: target},
+	}
+	return c
+}
+
+func main() {
+	cfg := defaultServerConfig()
+	if configPath != "" {
+		var err error
+		cfg, err = readServerConfig(configPath)
+		if err != nil {
+			log.Fatalln("Couldn't load config:", err)
+		}
+	}
+	cfg.sanitise()
+
+	if !cfg.check() {
+		log.Fatalln("Invalid config.")
+	}
+	if checkConfig {
+		log.Println("Config check passed")
+		os.Exit(0)
+	}
+
+	mux := NewStaticServeMux()
+	for _, e := range cfg.Errors {
+		mux.HandleError(e.Status, e.handler())
+	}
+
+	// Setup serves
+	for _, serve := range cfg.Serves {
+		var h http.Handler
+		if serve.Error > 0 {
+			errStatus := serve.Error
+			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, http.StatusText(errStatus), errStatus)
+			})
+		} else if serve.PreventListing {
+			// Prevent listing of directories lacking an index.html file
+			target := serve.Target
+			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				d := &PreventListingDir{http.Dir(target)}
+				h := http.FileServer(d)
+				defer func() {
+					if p := recover(); p != nil {
+						if p == d {
+							http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+							return
+						}
+						panic(p)
+					}
+				}()
+				h.ServeHTTP(w, r)
+			})
+		} else {
+			h = http.FileServer(http.Dir(serve.Target))
+		}
+		if len(serve.Headers) > 0 {
+			h = CustomHeadersHandler(h, serve.Headers)
+		}
+		mux.Handle(serve.Path, http.StripPrefix(serve.Path, h))
+	}
+
+	// Setup redirects
+	for _, redirect := range cfg.Redirects {
+		mux.Handle(redirect.From, http.RedirectHandler(redirect.To, redirect.With))
+	}
+
+	// Start listeners
+	for _, listener := range cfg.Listeners {
+		var h http.Handler = mux
+		if len(listener.Headers) > 0 {
+			h = CustomHeadersHandler(h, listener.Headers)
+		}
+		if listener.Gzip {
+			h = GzipHandler(h)
+		}
+		if listener.Protocol == "http" {
+			go func() {
+				err := http.ListenAndServe(listener.Addr, h)
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}()
+		} else if listener.Protocol == "https" {
+			go func() {
+				err := http.ListenAndServeTLS(listener.Addr, listener.CertFile, listener.KeyFile, h)
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}()
+		} else {
+			log.Printf("Unsupported protocol %s\n", listener.Protocol)
+		}
+		log.Printf("listening on %s (%s)\n", listener.Addr, listener.Protocol)
+	}
+
+	// Since all the listeners are running in separate gorotines, we have to
+	// wait here for a termination signal.
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
+	<-exit
+	os.Exit(0)
 }
