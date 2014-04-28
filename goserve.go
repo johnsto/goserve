@@ -138,6 +138,39 @@ func (s Serve) check(label string) (ok bool) {
 	return
 }
 
+func (s Serve) handler() http.Handler {
+	var h http.Handler
+	if s.Error > 0 {
+		errStatus := s.Error
+		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, http.StatusText(errStatus), errStatus)
+		})
+	} else if s.PreventListing {
+		// Prevent listing of directories lacking an index.html file
+		target := s.Target
+		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			d := &PreventListingDir{http.Dir(target)}
+			h := http.FileServer(d)
+			defer func() {
+				if p := recover(); p != nil {
+					if p == d {
+						http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+						return
+					}
+					panic(p)
+				}
+			}()
+			h.ServeHTTP(w, r)
+		})
+	} else {
+		h = http.FileServer(http.Dir(s.Target))
+	}
+	if len(s.Headers) > 0 {
+		h = CustomHeadersHandler(h, s.Headers)
+	}
+	return http.StripPrefix(s.Path, h)
+}
+
 // Redirect represents a redirect from one path to another.
 type Redirect struct {
 	From string `yaml:"from"`
@@ -162,6 +195,10 @@ func (r Redirect) check(label string) (ok bool) {
 		ok = false
 	}
 	return true
+}
+
+func (r Redirect) handler() http.Handler {
+	return http.RedirectHandler(r.To, r.With)
 }
 
 // Error represents what to do when a particular HTTP status is encountered.
@@ -407,48 +444,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Setup handlers
 	mux := NewStaticServeMux()
 	for _, e := range cfg.Errors {
 		mux.HandleError(e.Status, e.handler())
 	}
-
-	// Setup serves
 	for _, serve := range cfg.Serves {
-		var h http.Handler
-		if serve.Error > 0 {
-			errStatus := serve.Error
-			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, http.StatusText(errStatus), errStatus)
-			})
-		} else if serve.PreventListing {
-			// Prevent listing of directories lacking an index.html file
-			target := serve.Target
-			h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				d := &PreventListingDir{http.Dir(target)}
-				h := http.FileServer(d)
-				defer func() {
-					if p := recover(); p != nil {
-						if p == d {
-							http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-							return
-						}
-						panic(p)
-					}
-				}()
-				h.ServeHTTP(w, r)
-			})
-		} else {
-			h = http.FileServer(http.Dir(serve.Target))
-		}
-		if len(serve.Headers) > 0 {
-			h = CustomHeadersHandler(h, serve.Headers)
-		}
-		mux.Handle(serve.Path, http.StripPrefix(serve.Path, h))
+		mux.Handle(serve.Path, serve.handler())
 	}
-
-	// Setup redirects
 	for _, redirect := range cfg.Redirects {
-		mux.Handle(redirect.From, http.RedirectHandler(redirect.To, redirect.With))
+		mux.Handle(redirect.From, redirect.handler())
 	}
 
 	// Start listeners
