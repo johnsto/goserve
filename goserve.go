@@ -163,7 +163,7 @@ func (s Serve) check(label string) (ok bool) {
 		ok = false
 	}
 	if s.Error != 0 && s.Target != "" {
-		log.Println(label + ": error specificied with target path")
+		log.Println(label + ": error specified with target path")
 		ok = false
 	}
 	return
@@ -446,4 +446,96 @@ func main() {
 	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 	<-exit
 	os.Exit(0)
+}
+
+
+
+type StaticServeMux struct {
+	http.ServeMux
+	errors map[int]http.Handler
+}
+
+func (s *StaticServeMux) HandleError(status int, handler http.Handler) {
+	if s.errors[status] != nil {
+		panic("Handler for error already registered")
+	}
+	s.errors[status] = handler
+}
+
+func (s StaticServeMux) intercept(status int, w http.ResponseWriter, req *http.Request) bool {
+	if e, f := s.errors[status]; f {
+		e.ServeHTTP(w, req)
+		return true
+	}
+	if status < 400 {
+		return false
+	}
+	http.Error(w, http.StatusText(status), status)
+	return true
+}
+
+func (s *StaticServeMux) interceptHandler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		irw := &interceptResponseWriter{
+			ResponseWriter: w,
+			r: r,
+			m: s,
+		}
+
+		// If intercept occurred, originating call would have been panic'd.
+		// Recover here once error has been dealt with.
+		defer func() {
+			if p := recover(); p != nil {
+				if p == irw {
+					return
+				}
+				panic(p)
+			}
+		}()
+
+		handler.ServeHTTP(irw, r)
+	})
+}
+
+func (s *StaticServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.RequestURI == "*" {
+		if r.ProtoAtLeast(1, 1) {
+			w.Header().Set("Connection", "close")
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	h, _ := s.Handler(r)
+	h = s.interceptHandler(h)
+	h.ServeHTTP(w, r)
+}
+
+type interceptResponseWriter struct {
+	http.ResponseWriter
+	r *http.Request
+	m *StaticServeMux
+}
+
+func (h *interceptResponseWriter) WriteHeader(status int) {
+	if h.m.intercept(status, h.ResponseWriter, h.r) {
+		panic(h)
+	} else {
+		h.ResponseWriter.WriteHeader(status)
+	}
+}
+
+type statusResponseWriter struct {
+	http.ResponseWriter
+	Status int
+}
+
+func (h *statusResponseWriter) WriteHeader(status int) {
+	if h.Status < 0 {
+		return
+	}
+	if h.Status > 0 {
+		h.ResponseWriter.WriteHeader(h.Status)
+		return
+	}
+	h.ResponseWriter.WriteHeader(status)
 }
