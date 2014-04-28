@@ -148,20 +148,7 @@ func (s Serve) handler() http.Handler {
 	} else if s.PreventListing {
 		// Prevent listing of directories lacking an index.html file
 		target := s.Target
-		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			d := &PreventListingDir{http.Dir(target)}
-			h := http.FileServer(d)
-			defer func() {
-				if p := recover(); p != nil {
-					if p == d {
-						http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-						return
-					}
-					panic(p)
-				}
-			}()
-			h.ServeHTTP(w, r)
-		})
+		h = noDirListingHandler(http.Dir(target))
 	} else {
 		h = http.FileServer(http.Dir(s.Target))
 	}
@@ -339,6 +326,25 @@ func (dir *PreventListingDir) Open(name string) (f http.File, err error) {
 		panic(dir)
 	}
 	return
+}
+
+// noDirListingHandler returns a FileServer handler that does not permit
+// the listing of files.
+func noDirListingHandler(dir http.Dir) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		d := &PreventListingDir{dir}
+		h := http.FileServer(d)
+		defer func() {
+			if p := recover(); p != nil {
+				if p == d {
+					http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+					return
+				}
+				panic(p)
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
 }
 
 // CustomHeadersHandler creates a new handler that includes the provided
