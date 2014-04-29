@@ -1,6 +1,6 @@
 # goserve
 
-A super dumb, super simple HTTP server designed for serving static files and requiring only rudimentary configuration.
+A plain HTTP server designed for serving static files with the most rudimentary of configuration.
 
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
 
@@ -15,13 +15,13 @@ A super dumb, super simple HTTP server designed for serving static files and req
 
 ## Performance
 
-In a completely arbitrary, unscientific test on a machine where `python -m SimpleHTTPServer` achieved 46reqs/sec and Node's `http-server` achieved 625reqs/sec, `goserve` achieved 4716 reqs/sec.
+In a completely arbitrary, unscientific and unreliable test on a machine where `python -m SimpleHTTPServer` achieved 46reqs/sec and Node's `http-server` achieved 625reqs/sec, `goserve` achieved 4716 reqs/sec.
 
 ## Configuration
 
 By default, `goserve` will serve the current directory on port 8080 when run without any parameters.
 
-Alternatively, a configuration file can be specified using the `-config` parameter.
+Alternatively, a configuration file can be specified using the `-config` parameter for more advanced options.
 
 Config files are in the YAML format and have the following structure:
 
