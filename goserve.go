@@ -103,9 +103,8 @@ func main() {
 	}
 
 	// Start listeners
-	for _, listener := range cfg.Listeners {
-		log.Println("Listen!!!")
-		log.Println(listener)
+	for i := range cfg.Listeners {
+		listener := cfg.Listeners[i]
 
 		var h http.Handler = mux
 		if len(listener.Headers) > 0 {
@@ -116,19 +115,19 @@ func main() {
 		}
 		if listener.Protocol == "http" {
 			go func() {
+				log.Printf("listening on HTTP %s\n", listener.Addr)
 				err := http.ListenAndServe(listener.Addr, h)
 				if err != nil {
 					log.Fatalln(err)
 				}
-				log.Printf("listening on %s (%s)\n", listener.Addr, listener.Protocol)
 			}()
 		} else if listener.Protocol == "https" {
 			go func() {
+				log.Printf("listening on HTTPS %s\n", listener.Addr)
 				err := http.ListenAndServeTLS(listener.Addr, listener.CertFile, listener.KeyFile, h)
 				if err != nil {
 					log.Fatalln(err)
 				}
-				log.Printf("listening on %s (%s)\n", listener.Addr, listener.Protocol)
 			}()
 		} else {
 			log.Printf("Unsupported protocol %s\n", listener.Protocol)
