@@ -19,16 +19,16 @@ In a completely arbitrary, unscientific and unreliable test on a machine where `
 
 ## Configuration
 
-By default, `goserve` will serve the current directory on port 8080 when run without any parameters. If a path argument is provided, `goserve` will serve from that directory instead.
+By default, `goserve` will serve the current directory via HTTP on port 8080 when run without any parameters. If a path argument is provided, `goserve` will serve from that directory instead.
 
 Alternatively, a configuration file can be specified using the `-config` parameter for more advanced options.
 
 ### Command-line configuration
 
-For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve the contents of `/var/www/` over HTTPS, you might use:
+For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve the contents of `/var/www/` to the world over HTTPS, you might use:
 
 ```
-goserve -http=false -https=true -https.cert=my.cert -https.key=my.key /var/www
+goserve -http=false -https=true -https.cert=my.cert -https.key=my.key -https.addr="0.0.0.0:443" /var/www
 ```
 
 The following parameters are supported:
