@@ -13,6 +13,8 @@ A plain HTTP server designed for serving static files with the most rudimentary 
 * Custom headers (v0.2)
 * GZip compression (v0.2)
 
+(If you want anything more (or indeed, less) than this, then you may want to consider rolling your own. [Go makes static file serving simple!](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles))
+
 ## Performance
 
 In a completely arbitrary, unscientific and unreliable test on a machine where `python -m SimpleHTTPServer` achieved 46reqs/sec and Node's `http-server` achieved 625reqs/sec, `goserve` achieved 4716 reqs/sec.
