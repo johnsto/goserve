@@ -19,9 +19,36 @@ In a completely arbitrary, unscientific and unreliable test on a machine where `
 
 ## Configuration
 
-By default, `goserve` will serve the current directory on port 8080 when run without any parameters.
+By default, `goserve` will serve the current directory on port 8080 when run without any parameters. If a path argument is provided, `goserve` will serve from that directory instead.
 
 Alternatively, a configuration file can be specified using the `-config` parameter for more advanced options.
+
+### Command-line configuration
+
+For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve an HTTP site, you might use:
+
+```
+goserve -http=false -https=true https.cert=my.cert https-key=my.key -indexes=false /var/www`
+```
+
+The following parameters are supported:
+
+```
+  -config="": Path to configuration
+  -config.check=false: Check config then quit
+  -config.echo=false: Echo config then quit
+  -http=true: Enable HTTP listener
+  -http.addr=":8080": HTTP address
+  -http.gzip=true: Enable HTTP gzip compression
+  -https=false: Enable HTTPS listener
+  -https.addr=":8443": HTTPS address
+  -https.cert="": Path to HTTPS cert
+  -https.gzip=true: Enable HTTPS gzip compression
+  -https.key="": Path to HTTPS key
+  -indexes=true: Allow directory listing
+```
+
+### YAML configuration
 
 Config files are in the YAML format and have the following structure:
 
