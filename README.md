@@ -25,10 +25,10 @@ Alternatively, a configuration file can be specified using the `-config` paramet
 
 ### Command-line configuration
 
-For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve an HTTP site, you might use:
+For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve the contents of `/var/www/` over HTTPS, you might use:
 
 ```
-goserve -http=false -https=true https.cert=my.cert https-key=my.key -indexes=false /var/www`
+goserve -http=false -https=true -https.cert=my.cert -https.key=my.key /var/www
 ```
 
 The following parameters are supported:
