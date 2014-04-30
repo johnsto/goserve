@@ -1,6 +1,6 @@
 # goserve
 
-A plain HTTP server designed for serving static files with the most rudimentary of configuration.
+*A plain HTTP server designed for serving static files with the most rudimentary of configuration.*
 
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
 
@@ -13,7 +13,7 @@ A plain HTTP server designed for serving static files with the most rudimentary 
 * Custom headers (v0.2)
 * GZip compression (v0.2)
 
-If you want anything more (or indeed, less) than this, then you may want to consider rolling your own - fortunately Go makes it [ridiculously simple](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles)!
+If you want anything more or less than this, then you may want to consider rolling your own. Go makes it [ridiculously simple](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles) to serve static files out-of-the-box, and [Martini](http://martini.codegangsta.io) is perfect for dynamic sites.
 
 ## Performance
 
