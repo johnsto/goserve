@@ -14,8 +14,8 @@ type Headers map[string]string
 type ServerConfig struct {
 	Listeners []Listener `yaml:"listeners"`
 	Serves    []Serve    `yaml:"serves"`
-	Errors    []Error    `yaml:"errors"`
-	Redirects []Redirect `yaml:"redirects"`
+	Errors    []Error    `yaml:"errors,omitempty"`
+	Redirects []Redirect `yaml:"redirects,omitempty"`
 }
 
 func (c ServerConfig) sanitise() {
@@ -59,9 +59,9 @@ func (c ServerConfig) check() (ok bool) {
 type Listener struct {
 	Protocol string  `yaml:"protocol"`
 	Addr     string  `yaml:"addr"`
-	CertFile string  `yaml:"cert"`
-	KeyFile  string  `yaml:"key"`
-	Headers  Headers `yaml:"headers"` // custom headers
+	CertFile string  `yaml:"cert,omitempty"`
+	KeyFile  string  `yaml:"key,omitempty"`
+	Headers  Headers `yaml:"headers,omitempty"` // custom headers
 	Gzip     bool    `yaml:"gzip"`
 }
 
@@ -83,11 +83,11 @@ func (l *Listener) check(label string) (ok bool) {
 		}
 	} else if l.Protocol == "https" {
 		if _, err := os.Stat(l.CertFile); os.IsNotExist(err) {
-			log.Printf(label + ": cert file `%s` does not exist", l.CertFile)
+			log.Printf(label+": cert file `%s` does not exist", l.CertFile)
 			ok = false
 		}
 		if _, err := os.Stat(l.KeyFile); os.IsNotExist(err) {
-			log.Printf(label + ": key file `%s` does not exist", l.KeyFile)
+			log.Printf(label+": key file `%s` does not exist", l.KeyFile)
 			ok = false
 		}
 	} else {
@@ -99,11 +99,11 @@ func (l *Listener) check(label string) (ok bool) {
 
 // Serve represents a path that will be served.
 type Serve struct {
-	Target         string  `yaml:"target"`          // where files are stored on the file system
-	Path           string  `yaml:"path"`            // HTTP path to serve files under
-	Error          int     `yaml:"error"`           // HTTP error to return (0=disabled)
-	PreventListing bool    `yaml:"prevent-listing"` // prevent file listing
-	Headers        Headers `yaml:"headers"`         // custom headers
+	Target  string  `yaml:"target"`            // where files are stored on the file system
+	Path    string  `yaml:"path"`              // HTTP path to serve files under
+	Error   int     `yaml:"error,omitempty"`   // HTTP error to return (0=disabled)
+	Indexes bool    `yaml:"indexes,omitempty"` // list directory contents
+	Headers Headers `yaml:"headers,omitempty"` // custom headers
 }
 
 func (s *Serve) sanitise() {
@@ -136,11 +136,11 @@ func (s Serve) handler() http.Handler {
 		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(errStatus), errStatus)
 		})
-	} else if s.PreventListing {
+	} else if s.Indexes {
+		h = http.FileServer(http.Dir(s.Target))
+	} else {
 		// Prevent listing of directories lacking an index.html file
 		h = SuppressListingHandler(http.Dir(s.Target))
-	} else {
-		h = http.FileServer(http.Dir(s.Target))
 	}
 
 	if len(s.Headers) > 0 {
@@ -154,7 +154,7 @@ func (s Serve) handler() http.Handler {
 type Redirect struct {
 	From string `yaml:"from"`
 	To   string `yaml:"to"`
-	With int    `yaml:"status"`
+	With int    `yaml:"status,omitempty"`
 }
 
 func (r *Redirect) sanitise() {

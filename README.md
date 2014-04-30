@@ -44,7 +44,7 @@ serves:
       Cache-Control: public, max-age=86400
   - path: /
     target: /var/wwwroot
-    prevent-listing: true
+    indexes: true # allow listing of directory contents
 
 errors:
   - status: 404

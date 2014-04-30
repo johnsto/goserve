@@ -16,35 +16,39 @@ var cfg ServerConfig
 
 func init() {
 	configPath := flag.String("config", "", "Path to configuration")
-	checkConfig := flag.Bool("check", false, "Only check config")
+	checkConfig := flag.Bool("config.check", false, "Check config then quit")
+	echoConfig := flag.Bool("config.echo", false, "Echo config then quit")
+
+	indexes := flag.Bool("indexes", true, "Allow directory listing")
 
 	httpEnabled := flag.Bool("http", true, "Enable HTTP listener")
 	httpAddr := flag.String("http.addr", ":8080", "HTTP address")
-	httpGzip := flag.Bool("http.gzip", true, "Enable gzip compression")
+	httpGzip := flag.Bool("http.gzip", true, "Enable HTTP gzip compression")
+
 	httpsEnabled := flag.Bool("https", false, "Enable HTTPS listener")
 	httpsAddr := flag.String("https.addr", ":8443", "HTTPS address")
-	httpsGzip := flag.Bool("https.gzip", true, "Enable gzip compression")
-	httpsKey := flag.String("https.key", "", "SSL Key")
-	httpsCert := flag.String("https.cert", "", "SSL Cert")
+	httpsGzip := flag.Bool("https.gzip", true, "Enable HTTPS gzip compression")
+	httpsKey := flag.String("https.key", "", "Path to HTTPS key")
+	httpsCert := flag.String("https.cert", "", "Path to HTTPS cert")
 
 	flag.Parse()
 
 	if *configPath == "" {
 		cfg.Listeners = []Listener{}
 
-		if(*httpEnabled) {
+		if *httpEnabled {
 			cfg.Listeners = append(cfg.Listeners, Listener{
 				Protocol: "http",
-				Addr: *httpAddr,
-				Gzip: *httpGzip,
+				Addr:     *httpAddr,
+				Gzip:     *httpGzip,
 			})
 		}
-		if(*httpsEnabled) {
+		if *httpsEnabled {
 			cfg.Listeners = append(cfg.Listeners, Listener{
 				Protocol: "https",
-				Addr: *httpsAddr,
-				Gzip: *httpsGzip,
-				KeyFile: *httpsKey,
+				Addr:     *httpsAddr,
+				Gzip:     *httpsGzip,
+				KeyFile:  *httpsKey,
 				CertFile: *httpsCert,
 			})
 		}
@@ -54,16 +58,17 @@ func init() {
 		if target == "" {
 			target = "."
 		}
+
 		cfg.Serves = []Serve{
 			Serve{
-				Path:   "/",
-				Target: target,
+				Path:    "/",
+				Target:  target,
+				Indexes: *indexes,
 			},
 		}
 	} else {
 		var err error
 		cfg, err = readServerConfig(*configPath)
-		log.Printf("Reading config: %s\n", *configPath)
 		if err != nil {
 			log.Fatalln("Couldn't load config:", err)
 		}
@@ -71,11 +76,23 @@ func init() {
 
 	cfg.sanitise()
 
-	if !cfg.check() {
-		log.Fatalln("Invalid config.")
+	if *echoConfig {
+		b, err := yaml.Marshal(cfg)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		print(string(b))
 	}
+
+	if !cfg.check() {
+		log.Fatalln("Invalid config. Exiting.")
+	}
+
 	if *checkConfig {
-		log.Println("Config check passed")
+		log.Println("Config check passed.")
+	}
+
+	if *echoConfig || *checkConfig {
 		os.Exit(0)
 	}
 }

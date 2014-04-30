@@ -45,7 +45,7 @@ func (s StaticServeMux) intercept(status int, w http.ResponseWriter, req *http.R
 
 func (s *StaticServeMux) interceptHandler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		irw := &interceptResponseWriter{
+		irw := &InterceptResponseWriter{
 			ResponseWriter: w,
 			r:              r,
 			m:              s,
@@ -79,13 +79,13 @@ func (s *StaticServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-type interceptResponseWriter struct {
+type InterceptResponseWriter struct {
 	http.ResponseWriter
 	r *http.Request
 	m *StaticServeMux
 }
 
-func (h *interceptResponseWriter) WriteHeader(status int) {
+func (h *InterceptResponseWriter) WriteHeader(status int) {
 	if h.m.intercept(status, h.ResponseWriter, h.r) {
 		panic(h)
 	} else {
