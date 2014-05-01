@@ -2,8 +2,6 @@
 
 *A plain HTTP server designed for serving static files with the most rudimentary of configuration.*
 
-*...because sometimes nginx is too much and `python -m SimpleHTTPServer` is simply not enough...*
-
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
 
 ## Features
@@ -56,9 +54,9 @@ The following parameters are supported:
   -indexes=true: Allow directory listing
 ```
 
-### YAML configuration
+### File-based configuration
 
-Config files expose additional functionality (such as error handlers and redirects) and have the following structure:
+Config files expose additional functionality (such as error handlers and redirects) and have the following YAML structure:
 
 ```
 listeners:
