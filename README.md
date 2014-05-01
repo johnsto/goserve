@@ -2,6 +2,8 @@
 
 *A plain HTTP server designed for serving static files with the most rudimentary of configuration.*
 
+*...because sometimes nginx is too much and `python -m SimpleHTTPServer` is simply not enough...*
+
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
 
 ## Features
@@ -10,14 +12,18 @@
 * Range handling
 * HTTPS (TLS)
 * Custom error pages
-* Custom headers (v0.2)
-* GZip compression (v0.2)
+* Custom headers
+* GZip compression
 
-If you want anything more or less than this, then you may want to consider rolling your own. Go makes it [ridiculously simple](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles) to serve static files out-of-the-box, and [Martini](http://martini.codegangsta.io) is perfect for dynamic sites.
+If you want anything more (or less!) than this, then you may want to consider writing your own - Go makes it [ridiculously simple](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles) to serve static files out-of-the-box. For everything else, [Martini](http://martini.codegangsta.io) is worth a good look.
 
 ## Performance
 
-In a completely arbitrary, unscientific and unreliable test on a machine where `python -m SimpleHTTPServer` achieved 46reqs/sec and Node's `http-server` achieved 625reqs/sec, `goserve` achieved 4716 reqs/sec.
+In a completely arbitrary, unscientific and unreliable test on a machine where `python -m SimpleHTTPServer` achieved 46 reqs/sec and Node's `http-server` achieved 625 reqs/sec, `goserve` achieved 4716 reqs/sec.
+
+## Installation
+
+Either `go get github.com/johnsto/goserve`, or download a [binary from gobuild.io](http://gobuild.io/github.com/johnsto/goserve).
 
 ## Configuration
 
@@ -27,7 +33,7 @@ Alternatively, a configuration file can be specified using the `-config` paramet
 
 ### Command-line configuration
 
-For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve the contents of `/var/www/` to the world over HTTPS, you might use:
+For cases where only one directory is being served, and there are no need for redirects or custom error handling, the command line is usually sufficient. For example, to serve the contents of `/var/www/` to the world over HTTPS (and only HTTPS), you might use:
 
 ```
 goserve -http=false -https=true -https.cert=my.cert -https.key=my.key -https.addr="0.0.0.0:443" /var/www
@@ -52,7 +58,7 @@ The following parameters are supported:
 
 ### YAML configuration
 
-Config files are in the YAML format and have the following structure:
+Config files expose additional functionality (such as error handlers and redirects) and have the following structure:
 
 ```
 listeners:
@@ -98,3 +104,5 @@ Goserve will serve up the `index.html` file of any directory that is requested. 
 Goserve is little more than a (admittedly rather hacky) configurable wrapper around Go's `http.ServeFile` handler, so it benefits from all the features of the default `FileServer` implementation (such as ETag support and range handling). Unfortunately, Go's `net/http` package doesn't expose quite as much control over the default `FileServer` implementation as one would like, so `goserve` uses a combination of wrapped handlers and `panic` intercepts to achieve the desired behaviour.
 
 To deal with errors, a custom `ResponseWriter` intercepts `WriteHeader` calls and attempts to serve up an appropriate error file (again, using `http.ServeFile`) when the status is known. Otherwise it falls through to the default implementation.
+
+Another hack is needed to prevent directory listing, which works in a similar fashion.
