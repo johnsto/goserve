@@ -3,8 +3,12 @@ package main
 import (
 	"compress/gzip"
 	"io"
+	"fmt"
 	"net/http"
 	"strings"
+	"strconv"
+	"time"
+	"os"
 )
 
 // StaticServeMux wraps ServeMux but allows for the interception of errors.
@@ -189,4 +193,41 @@ func GzipHandler(h http.Handler) http.Handler {
 		defer gz.Close()
 		h.ServeHTTP(&GzipResponseWriter{Writer: gz, ResponseWriter: w}, r)
 	})
+}
+
+func LogHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rw := NewLoggingResponseWriter(w)
+		h.ServeHTTP(rw, r)
+		rw.log(r)
+	})
+}
+
+type LoggingResponseWriter struct {
+	http.ResponseWriter
+	status *int
+	out io.Writer
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) LoggingResponseWriter {
+	return LoggingResponseWriter{
+		ResponseWriter: w,
+		status: new(int),
+		out: os.Stdout,
+	}
+}
+
+func (w LoggingResponseWriter) WriteHeader(status int) {
+	w.ResponseWriter.WriteHeader(status)
+	*w.status = status;
+}
+
+func (w LoggingResponseWriter) log(req *http.Request) {
+	fmt.Printf(
+		"%s - %s - %s - %s - %d\n",
+		time.Now().Format(time.RFC3339),
+		req.RemoteAddr,
+		req.Host,
+		strconv.Quote(req.Method + " " + req.RequestURI),
+		*w.status)
 }

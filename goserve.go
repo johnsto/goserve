@@ -128,6 +128,7 @@ func main() {
 		if l.Gzip {
 			h = GzipHandler(h)
 		}
+		h = LogHandler(h)
 		if l.Protocol == "http" {
 			go func(l Listener) {
 				log.Printf("listening on HTTP %s\n", l.Addr)
