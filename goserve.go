@@ -112,42 +112,40 @@ func main() {
 	for _, e := range cfg.Errors {
 		mux.HandleError(e.Status, e.handler())
 	}
-	for _, serve := range cfg.Serves {
-		mux.Handle(serve.Path, serve.handler())
+	for _, s := range cfg.Serves {
+		mux.Handle(s.Path, s.handler())
 	}
-	for _, redirect := range cfg.Redirects {
-		mux.Handle(redirect.From, redirect.handler())
+	for _, r := range cfg.Redirects {
+		mux.Handle(r.From, r.handler())
 	}
 
 	// Start listeners
-	for i := range cfg.Listeners {
-		listener := cfg.Listeners[i]
-
+	for _, l := range cfg.Listeners {
 		var h http.Handler = mux
-		if len(listener.Headers) > 0 {
-			h = CustomHeadersHandler(h, listener.Headers)
+		if len(l.Headers) > 0 {
+			h = CustomHeadersHandler(h, l.Headers)
 		}
-		if listener.Gzip {
+		if l.Gzip {
 			h = GzipHandler(h)
 		}
-		if listener.Protocol == "http" {
-			go func() {
-				log.Printf("listening on HTTP %s\n", listener.Addr)
-				err := http.ListenAndServe(listener.Addr, h)
+		if l.Protocol == "http" {
+			go func(l Listener) {
+				log.Printf("listening on HTTP %s\n", l.Addr)
+				err := http.ListenAndServe(l.Addr, h)
 				if err != nil {
 					log.Fatalln(err)
 				}
-			}()
-		} else if listener.Protocol == "https" {
-			go func() {
-				log.Printf("listening on HTTPS %s\n", listener.Addr)
-				err := http.ListenAndServeTLS(listener.Addr, listener.CertFile, listener.KeyFile, h)
+			}(l)
+		} else if l.Protocol == "https" {
+			go func(l Listener) {
+				log.Printf("listening on HTTPS %s\n", l.Addr)
+				err := http.ListenAndServeTLS(l.Addr, l.CertFile, l.KeyFile, h)
 				if err != nil {
 					log.Fatalln(err)
 				}
-			}()
+			}(l)
 		} else {
-			log.Printf("Unsupported protocol %s\n", listener.Protocol)
+			log.Printf("Unsupported protocol %s\n", l.Protocol)
 		}
 	}
 
