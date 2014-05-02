@@ -2,13 +2,13 @@ package main
 
 import (
 	"compress/gzip"
-	"io"
 	"fmt"
+	"io"
 	"net/http"
-	"strings"
-	"strconv"
-	"time"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // StaticServeMux wraps ServeMux but allows for the interception of errors.
@@ -206,20 +206,20 @@ func LogHandler(h http.Handler) http.Handler {
 type LoggingResponseWriter struct {
 	http.ResponseWriter
 	status *int
-	out io.Writer
+	out    io.Writer
 }
 
 func NewLoggingResponseWriter(w http.ResponseWriter) LoggingResponseWriter {
 	return LoggingResponseWriter{
 		ResponseWriter: w,
-		status: new(int),
-		out: os.Stdout,
+		status:         new(int),
+		out:            os.Stdout,
 	}
 }
 
 func (w LoggingResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
-	*w.status = status;
+	*w.status = status
 }
 
 func (w LoggingResponseWriter) log(req *http.Request) {
@@ -228,6 +228,6 @@ func (w LoggingResponseWriter) log(req *http.Request) {
 		time.Now().Format(time.RFC3339),
 		req.RemoteAddr,
 		req.Host,
-		strconv.Quote(req.Method + " " + req.RequestURI),
+		strconv.Quote(req.Method+" "+req.RequestURI),
 		*w.status)
 }
