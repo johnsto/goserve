@@ -83,12 +83,16 @@ func (s *StaticServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
+// InterceptResponseWriter allows non-200 responses to be intercepted based 
+// on their status code.
 type InterceptResponseWriter struct {
 	http.ResponseWriter
 	r *http.Request
 	m *StaticServeMux
 }
 
+// WriteHeader panics if the response should be intercepted, otherwise it
+// writes the response status.
 func (h *InterceptResponseWriter) WriteHeader(status int) {
 	if h.m.intercept(status, h.ResponseWriter, h.r) {
 		panic(h)
@@ -195,6 +199,8 @@ func GzipHandler(h http.Handler) http.Handler {
 	})
 }
 
+// LogHandler wraps with a LoggingResponseWriter for the purpose of logging
+// accesses and errors.
 func LogHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rw := NewLoggingResponseWriter(w)
@@ -203,31 +209,51 @@ func LogHandler(h http.Handler) http.Handler {
 	})
 }
 
+// LoggingResponseWriter intercepts the request and stores the status.
 type LoggingResponseWriter struct {
 	http.ResponseWriter
 	status *int
-	out    io.Writer
+	size   *int
 }
 
+// NewLoggingResponseWriter creates a new LoggingResponseWriter that wraps
+// the given ResponseWriter. It will log 4xx/5xx responses to stderr, and
+// everything else to stdout.
 func NewLoggingResponseWriter(w http.ResponseWriter) LoggingResponseWriter {
-	return LoggingResponseWriter{
+	lrw := LoggingResponseWriter{
 		ResponseWriter: w,
 		status:         new(int),
-		out:            os.Stdout,
+		size:           new(int),
 	}
+	*lrw.status = 200 // as WriteHeader normally isn't called
+	*lrw.size = 0
+	return lrw
 }
 
+// WriteHeader records the status written in the response.
 func (w LoggingResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 	*w.status = status
 }
 
+func (w LoggingResponseWriter) Write(b []byte) (c int, e error) {
+	c, e = w.ResponseWriter.Write(b)
+	*w.size += c
+	return
+}
+
 func (w LoggingResponseWriter) log(req *http.Request) {
-	fmt.Printf(
-		"%s - %s - %s - %s - %d\n",
-		time.Now().Format(time.RFC3339),
-		req.RemoteAddr,
-		req.Host,
-		strconv.Quote(req.Method+" "+req.RequestURI),
-		*w.status)
+	out := os.Stdout
+	if *w.status >= 400 && *w.status < 600 {
+		// direct all errors to stderr
+		out = os.Stderr
+	}
+
+	t := time.Now().Format(time.RFC3339)
+	remoteAddr := strings.Split(req.RemoteAddr, ":")[0]
+	localAddr := strings.Split(req.Host, ":")[0]
+	requestLine := req.Method + " " + req.RequestURI
+
+	fmt.Fprintf(out, "%s [%s] %s %s %d %d\n", remoteAddr, t, localAddr,
+		strconv.Quote(requestLine), *w.status, *w.size)
 }

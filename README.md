@@ -12,6 +12,7 @@
 * Custom error pages
 * Custom headers
 * GZip compression
+* Logging
 
 If you want anything more (or less!) than this, then you may want to consider writing your own - Go makes it [ridiculously simple](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles) to serve static files out-of-the-box. For everything else, [Martini](http://martini.codegangsta.io) is worth a good look.
 
@@ -96,6 +97,16 @@ redirects:
 ## Notes
 
 Goserve will serve up the `index.html` file of any directory that is requested. If `index.html` is not found, it will list the contents of the directory. If you don't want the contents of a directory to be listable, place an empty `index.html` file in the directory. Alternatively, specify `prevent-listing: true` on the serve to serve up a "403 Forbidden" error instead.
+
+### Logging
+
+Goserve logs all errors (4xx and 5xx) to standard error, and everything else to standard output. Each line takes the following format:
+
+`{remote address} [{timestamp (RFC3339)}] {local address} "{method} {path}" {status} {size of response body}`
+
+Which translates to:
+
+`64.207.184.105 [2014-05-04T09:53:10Z] 23.66.164.226 "GET /" 200 383`
 
 ### Implementation
 

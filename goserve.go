@@ -12,9 +12,12 @@ import (
 	"syscall"
 )
 
+var verbose bool
 var cfg ServerConfig
 
 func init() {
+	flag.BoolVar(&verbose, "verbose", false, "Increase verbosity")
+
 	configPath := flag.String("config", "", "Path to configuration")
 	checkConfig := flag.Bool("config.check", false, "Check config then quit")
 	echoConfig := flag.Bool("config.echo", false, "Echo config then quit")
@@ -131,7 +134,9 @@ func main() {
 		h = LogHandler(h)
 		if l.Protocol == "http" {
 			go func(l Listener) {
-				log.Printf("listening on HTTP %s\n", l.Addr)
+				if verbose {
+					log.Printf("listening on HTTP %s\n", l.Addr)
+				}
 				err := http.ListenAndServe(l.Addr, h)
 				if err != nil {
 					log.Fatalln(err)
@@ -139,7 +144,11 @@ func main() {
 			}(l)
 		} else if l.Protocol == "https" {
 			go func(l Listener) {
-				log.Printf("listening on HTTPS %s\n", l.Addr)
+				if verbose {
+					log.Printf(
+						"listening on HTTPS %s (cert: %s, key: %s)\n",
+						l.Addr, l.CertFile, l.KeyFile)
+				}
 				err := http.ListenAndServeTLS(l.Addr, l.CertFile, l.KeyFile, h)
 				if err != nil {
 					log.Fatalln(err)
