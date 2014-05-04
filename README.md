@@ -102,11 +102,13 @@ Goserve will serve up the `index.html` file of any directory that is requested. 
 
 Goserve logs all errors (4xx and 5xx) to standard error, and everything else to standard output. Each line takes the following format:
 
-`{remote address} [{timestamp (RFC3339)}] {local address} "{method} {path}" {status} {size of response body}`
+`{remote} [{RFC3339 timestamp}] {local} "{method} {path}" {status} {size}`
 
 Which translates to:
 
 `64.207.184.105 [2014-05-04T09:53:10Z] 23.66.164.226 "GET /" 200 383`
+
+Note: like Apache, the recorded response size (in bytes) does not include headers.
 
 ### Implementation
 
