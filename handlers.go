@@ -83,7 +83,7 @@ func (s *StaticServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-// InterceptResponseWriter allows non-200 responses to be intercepted based 
+// InterceptResponseWriter allows non-200 responses to be intercepted based
 // on their status code.
 type InterceptResponseWriter struct {
 	http.ResponseWriter

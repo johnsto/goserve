@@ -37,6 +37,10 @@ func init() {
 	flag.Parse()
 
 	if *configPath == "" {
+		if verbose {
+			log.Println("Config file not specified; using arguments")
+		}
+
 		cfg.Listeners = []Listener{}
 
 		if *httpEnabled {
@@ -70,6 +74,10 @@ func init() {
 			},
 		}
 	} else {
+		if verbose {
+			log.Println("Config file specified; ignoring command line arguments")
+		}
+
 		var err error
 		cfg, err = readServerConfig(*configPath)
 		if err != nil {
