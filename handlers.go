@@ -123,10 +123,10 @@ type PreventListingDir struct {
 	http.Dir
 }
 
-// Open panics whenever opening a file fails.
+// Open panics whenever opening an index file fails.
 func (dir *PreventListingDir) Open(name string) (f http.File, err error) {
 	f, err = dir.Dir.Open(name)
-	if f == nil {
+	if f == nil && strings.HasSuffix(name, "/index.html") {
 		panic(dir)
 	}
 	return
