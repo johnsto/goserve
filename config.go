@@ -19,17 +19,17 @@ type ServerConfig struct {
 }
 
 func (c ServerConfig) sanitise() {
-	for _, l := range c.Listeners {
-		l.sanitise()
+	for i := range c.Listeners {
+		c.Listeners[i].sanitise()
 	}
-	for _, s := range c.Serves {
-		s.sanitise()
+	for i := range c.Serves {
+		c.Serves[i].sanitise()
 	}
-	for _, r := range c.Redirects {
-		r.sanitise()
+	for i := range c.Redirects {
+		c.Redirects[i].sanitise()
 	}
-	for _, e := range c.Errors {
-		e.sanitise()
+	for i := range c.Errors {
+		c.Errors[i].sanitise()
 	}
 }
 
@@ -160,7 +160,6 @@ type Redirect struct {
 func (r *Redirect) sanitise() {
 	if r.With == 0 {
 		r.With = 301
-		log.Printf("Defaulting status code %d for redirect %s\n", r.With, r.From)
 	}
 }
 
