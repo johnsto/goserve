@@ -250,10 +250,27 @@ func (w LoggingResponseWriter) log(req *http.Request) {
 	}
 
 	t := time.Now().Format(time.RFC3339)
-	remoteAddr := strings.Split(req.RemoteAddr, ":")[0]
-	localAddr := strings.Split(req.Host, ":")[0]
+	remoteAddr := extractAddressString(req.RemoteAddr)
+	localAddr := extractAddressString(req.Host)
 	requestLine := req.Method + " " + req.RequestURI
 
 	fmt.Fprintf(out, "%s [%s] %s %s %d %d\n", remoteAddr, t, localAddr,
 		strconv.Quote(requestLine), *w.status, *w.size)
+}
+
+// Extract the address from an address:port string.
+func extractAddressString(addrPort string) string {
+	if len(addrPort) == 0 {
+		return ""
+	}
+	if addrPort[len(addrPort)-1] == ']' {
+		// An IPv6 literal without a port?  Or just malformed?
+		return addrPort
+	}
+	pieces := strings.Split(addrPort, ":")
+	if len(pieces) > 1 {
+		return strings.Join(pieces[0:len(pieces)-1], ":")
+	} else {
+		return pieces[0]
+	}
 }
