@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -250,8 +251,8 @@ func (w LoggingResponseWriter) log(req *http.Request) {
 	}
 
 	t := time.Now().Format(time.RFC3339)
-	remoteAddr := strings.Split(req.RemoteAddr, ":")[0]
-	localAddr := strings.Split(req.Host, ":")[0]
+	remoteAddr, _, _ := net.SplitHostPort(req.RemoteAddr)
+	localAddr, _, _ := net.SplitHostPort(req.Host)
 	requestLine := req.Method + " " + req.RequestURI
 
 	fmt.Fprintf(out, "%s [%s] %s %s %d %d\n", remoteAddr, t, localAddr,

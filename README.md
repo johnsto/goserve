@@ -98,6 +98,8 @@ redirects:
 
 Goserve will serve up the `index.html` file of any directory that is requested. If `index.html` is not found, it will list the contents of the directory. If you don't want the contents of a directory to be listable, place an empty `index.html` file in the directory. Alternatively, specify `prevent-listing: true` on the serve to serve up a "403 Forbidden" error instead.
 
+To listen on an IPv6 address, surround the host part with square brackets, e.g. "[2001:db8::ff00:42:83209]:8080" or "[::1]:80".
+
 ### Logging
 
 Goserve logs all errors (4xx and 5xx) to standard error, and everything else to standard output. Each line takes the following format:
