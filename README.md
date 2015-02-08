@@ -2,7 +2,7 @@
 
 *A plain HTTP server designed for serving static files with the most rudimentary of configuration.*
 
-[![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest) [![Gobuild Download](http://gobuild.io/badge/github.com/johnsto/goserve/download.png)](http://gobuild.io/github.com/johnsto/goserve)
+[![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest)
 
 ## Features
 
@@ -22,7 +22,7 @@ In a completely arbitrary, unscientific and unreliable test on a machine where `
 
 ## Installation
 
-Either `go get github.com/johnsto/goserve`, or download a [binary from gobuild.io](http://gobuild.io/github.com/johnsto/goserve).
+`go get github.com/johnsto/goserve`
 
 ## Configuration
 
