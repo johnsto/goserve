@@ -2,6 +2,8 @@
 
 *A plain HTTP server designed for serving static files with the most rudimentary of configuration.*
 
+If you want something a bit fancier, try [devd](https://github.com/cortesi/devd) or [Caddy](https://github.com/mholt/caddy)
+
 [![Build Status](https://drone.io/github.com/johnsto/goserve/status.png)](https://drone.io/github.com/johnsto/goserve/latest)
 
 ## Features
@@ -14,7 +16,7 @@
 * GZip compression
 * Logging
 
-If you want anything more (or less!) than this, then you may want to consider writing your own - Go makes it [ridiculously simple](https://code.google.com/p/go-wiki/wiki/HttpStaticFiles) to serve static files out-of-the-box. For everything else, [Martini](http://martini.codegangsta.io) is worth a good look.
+If you want anything more (or less!) than this, then you may want to consider writing your own - Go makes it [ridiculously simple](https://github.com/golang/go/wiki/HttpStaticFiles) to serve static files out-of-the-box.
 
 ## Performance
 
